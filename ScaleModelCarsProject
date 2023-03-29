@@ -57,8 +57,7 @@ SELECT 'Offices' AS table_name,
 
 --Calculate Low Stock for the top 10 products
 SELECT productcode,
-					ROUND(SUM(quantityOrdered) *1.0 / (SELECT quantityInStock FROM products p 
-																									WHERE od.productCode = p.productCode), 2) AS low_stock
+	ROUND(SUM(quantityOrdered) *1.0 / (SELECT quantityInStock FROM products p 																								WHERE od.productCode = p.productCode), 2) AS low_stock
 FROM orderdetails od
 GROUP BY productcode
 ORDER BY 2 DESC
@@ -76,9 +75,9 @@ LIMIT 10;
 /* Question 1 */
 --Priority products for restocking are
 WITH low_Stock_table AS 
-						(SELECT productcode,
-					ROUND(SUM(quantityOrdered) *1.0 / (SELECT quantityInStock FROM products p 
-																									WHERE od.productCode = p.productCode), 2) AS low_Stock
+				(SELECT productcode,
+				ROUND(SUM(quantityOrdered) *1.0 / (SELECT quantityInStock FROM products p 
+							WHERE od.productCode = p.productCode), 2) AS low_Stock
 							FROM orderdetails od
 							GROUP BY productcode
 							ORDER BY 2 DESC
@@ -107,13 +106,13 @@ GROUP BY customerNumber;
 
 --Find the VIP customers
 WITH customerProfits AS
-									( SELECT  customerNumber, SUM(quantityOrdered * ( priceEach- buyPrice)) AS profit
-										FROM orderdetails od
-										JOIN products p
-												ON od.productCode = p.productCode
-										JOIN orders o
-												ON od.orderNumber = o.orderNumber
-										GROUP BY customerNumber)
+	( SELECT  customerNumber, SUM(quantityOrdered * ( priceEach- buyPrice)) AS profit
+	FROM orderdetails od
+	JOIN products p
+	ON od.productCode = p.productCode
+	JOIN orders o
+	ON od.orderNumber = o.orderNumber
+	GROUP BY customerNumber)
 
 SELECT contactLastName, contactFirstName, city,  country, cp.profit
 FROM customers c
@@ -124,13 +123,13 @@ LIMIT 5;
 
 --Find the least active customers
 WITH customerProfits AS
-									( SELECT  customerNumber, SUM(quantityOrdered * ( priceEach- buyPrice)) AS profit
-										FROM orderdetails od
-										JOIN products p
-												ON od.productCode = p.productCode
-										JOIN orders o
-												ON od.orderNumber = o.orderNumber
-										GROUP BY customerNumber)
+		( SELECT  customerNumber, SUM(quantityOrdered * ( priceEach- buyPrice)) AS profit
+		FROM orderdetails od
+		JOIN products p
+		ON od.productCode = p.productCode
+		JOIN orders o
+		ON od.orderNumber = o.orderNumber
+		GROUP BY customerNumber)
 										
 SELECT contactLastName, contactFirstName, city,  country, cp.profit
 FROM customers c
