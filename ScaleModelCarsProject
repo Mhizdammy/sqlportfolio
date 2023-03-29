@@ -1,0 +1,190 @@
+/* Screen 3 */
+-- Table descriptions
+SELECT 'Customers' AS table_name, 
+       13 AS number_of_attribute,
+       COUNT(*) AS number_of_row
+  FROM Customers
+  
+UNION ALL
+
+SELECT 'Products' AS table_name, 
+       9 AS number_of_attribute,
+       COUNT(*) AS number_of_row
+  FROM Products
+
+UNION ALL
+
+SELECT 'ProductLines' AS table_name, 
+       4 AS number_of_attribute,
+       COUNT(*) AS number_of_row
+  FROM ProductLines
+
+UNION ALL
+
+SELECT 'Orders' AS table_name, 
+       7 AS number_of_attribute,
+       COUNT(*) AS number_of_row
+  FROM Orders
+
+UNION ALL
+
+SELECT 'OrderDetails' AS table_name, 
+       5 AS number_of_attribute,
+       COUNT(*) AS number_of_row
+  FROM OrderDetails
+
+UNION ALL
+
+SELECT 'Payments' AS table_name, 
+       4 AS number_of_attribute,
+       COUNT(*) AS number_of_row
+  FROM Payments
+
+UNION ALL
+
+SELECT 'Employees' AS table_name, 
+       8 AS number_of_attribute,
+       COUNT(*) AS number_of_row
+  FROM Employees
+
+UNION ALL
+
+SELECT 'Offices' AS table_name, 
+       9 AS number_of_attribute,
+       COUNT(*) AS number_of_row
+  FROM Offices;
+
+
+--Calculate Low Stock for the top 10 products
+SELECT productcode,
+					ROUND(SUM(quantityOrdered) *1.0 / (SELECT quantityInStock FROM products p 
+																									WHERE od.productCode = p.productCode), 2) AS low_stock
+FROM orderdetails od
+GROUP BY productcode
+ORDER BY 2 DESC
+LIMIT 10;
+
+--Calculate Product Performance
+SELECT productCode, SUM(quantityOrdered * priceEach) AS prod_perf
+FROM orderdetails
+JOIN products
+USING(productCode)
+GROUP BY productCode
+ORDER BY 2 DESC
+LIMIT 10;
+
+/* Question 1 */
+--Priority products for restocking are
+WITH low_Stock_table AS 
+						(SELECT productcode,
+					ROUND(SUM(quantityOrdered) *1.0 / (SELECT quantityInStock FROM products p 
+																									WHERE od.productCode = p.productCode), 2) AS low_Stock
+							FROM orderdetails od
+							GROUP BY productcode
+							ORDER BY 2 DESC
+							LIMIT 10)
+							
+SELECT productname,  productLine, productCode, SUM(quantityOrdered * priceEach) AS prod_perf
+FROM orderdetails
+JOIN products
+USING(productCode)
+WHERE productcode IN (SELECT productCode FROM low_stock_table)
+GROUP BY productCode
+ORDER BY 2 DESC
+LIMIT 10;
+
+
+/* Question 2 */
+--Calculate the profits per customer
+
+SELECT  customerNumber, SUM(quantityOrdered * ( priceEach- buyPrice)) AS profit
+FROM orderdetails od
+JOIN products p
+ON od.productCode = p.productCode
+JOIN orders o
+ON od.orderNumber = o.orderNumber
+GROUP BY customerNumber;
+
+--Find the VIP customers
+WITH customerProfits AS
+									( SELECT  customerNumber, SUM(quantityOrdered * ( priceEach- buyPrice)) AS profit
+										FROM orderdetails od
+										JOIN products p
+												ON od.productCode = p.productCode
+										JOIN orders o
+												ON od.orderNumber = o.orderNumber
+										GROUP BY customerNumber)
+
+SELECT contactLastName, contactFirstName, city,  country, cp.profit
+FROM customers c
+JOIN customerprofits cp
+	ON c.customerNumber = cp.customerNumber
+ORDER BY 5 DESC
+LIMIT 5;
+
+--Find the least active customers
+WITH customerProfits AS
+									( SELECT  customerNumber, SUM(quantityOrdered * ( priceEach- buyPrice)) AS profit
+										FROM orderdetails od
+										JOIN products p
+												ON od.productCode = p.productCode
+										JOIN orders o
+												ON od.orderNumber = o.orderNumber
+										GROUP BY customerNumber)
+										
+SELECT contactLastName, contactFirstName, city,  country, cp.profit
+FROM customers c
+JOIN customerprofits cp
+	ON c.customerNumber = cp.customerNumber
+ORDER BY 5 ASC
+LIMIT 5;
+
+
+/* Question 3 */
+
+WITH payment_with_year_month_table AS (
+                            SELECT *, 
+                        CAST(SUBSTR(paymentDate, 1,4) AS INTEGER)*100 + CAST(SUBSTR(paymentDate, 6,7) AS INTEGER) AS year_month
+                        FROM payments p
+                                ),
+
+customers_by_month_table AS (
+SELECT p1.year_month, COUNT(*) AS number_of_customers, SUM(p1.amount) AS total
+  FROM payment_with_year_month_table p1
+ GROUP BY p1.year_month
+),
+
+new_customers_by_month_table AS (
+SELECT p1.year_month, 
+       COUNT(*) AS number_of_new_customers,
+       SUM(p1.amount) AS new_customer_total,
+       (SELECT number_of_customers
+          FROM customers_by_month_table c
+        WHERE c.year_month = p1.year_month) AS number_of_customers,
+       (SELECT total
+          FROM customers_by_month_table c
+         WHERE c.year_month = p1.year_month) AS total
+  FROM payment_with_year_month_table p1
+ WHERE p1.customerNumber NOT IN (SELECT customerNumber
+                                   FROM payment_with_year_month_table p2
+                                  WHERE p2.year_month < p1.year_month)
+ GROUP BY p1.year_month)
+
+SELECT year_month, 
+       ROUND(number_of_new_customers*100/number_of_customers,1) AS number_of_new_customers_props,
+       ROUND(new_customer_total*100/total,1) AS new_customers_total_props
+  FROM new_customers_by_month_table;
+  
+  
+--Calculate the average customer profits to get the Customer Life time value
+WITH customerProfits AS
+									( SELECT  customerNumber, SUM(quantityOrdered * ( priceEach- buyPrice)) AS profit
+										FROM orderdetails od
+										JOIN products p
+												ON od.productCode = p.productCode
+										JOIN orders o
+												ON od.orderNumber = o.orderNumber
+										GROUP BY customerNumber)
+										
+SELECT AVG(profit) AS avg_profit
+FROM customerProfits;
